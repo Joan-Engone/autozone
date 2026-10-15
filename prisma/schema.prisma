@@ -1,0 +1,268 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum VehicleStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+enum OrderStatus {
+  PENDING
+  VERIFIED
+  CONFIRMED
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum VehicleEventType {
+  VIEW
+  QUOTE
+}
+
+enum SellerStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+enum ListingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─────────────────────────────────────────────
+// USERS — BETTER AUTH
+// ─────────────────────────────────────────────
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+
+  // Roles: BUYER, SELLER, admin
+  role        String? @default("BUYER")
+  phone       String?
+  status      String? @default("ACTIVE")
+  accountType String?
+
+  // Better Auth Admin plugin
+  banned     Boolean?  @default(false)
+  banReason  String?
+  banExpires DateTime?
+
+  sessions      Session[]
+  accounts      Account[]
+  vehicles      Vehicle[]
+  purchases     Order[]
+  sellerProfile SellerProfile?
+
+  @@map("user")
+}
+
+// ─────────────────────────────────────────────
+// SESSIONS — BETTER AUTH
+// ─────────────────────────────────────────────
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  impersonatedBy String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+// ─────────────────────────────────────────────
+// ACCOUNTS — BETTER AUTH
+// ─────────────────────────────────────────────
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+// ─────────────────────────────────────────────
+// VERIFICATION — BETTER AUTH
+// ─────────────────────────────────────────────
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ─────────────────────────────────────────────
+// VEHICLES
+// ─────────────────────────────────────────────
+
+model Vehicle {
+  id           String        @id @default(cuid())
+  title        String
+  brand        String
+  model        String
+  year         Int
+  price        Int // Price in FCFA
+  mileage      Int?
+  fuel         String?
+  transmission String?
+  origin       String?
+  description  String?
+  imageUrl     String?
+
+  status  VehicleStatus @default(AVAILABLE)
+  listing ListingStatus @default(PENDING)
+  margin  Int           @default(0)
+
+  sellerId String
+  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  orders Order[]
+  events VehicleEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId])
+  @@map("vehicle")
+}
+
+// ─────────────────────────────────────────────
+// ORDERS
+// ─────────────────────────────────────────────
+
+model Order {
+  id        String      @id @default(cuid())
+  vehicleId String
+  buyerId   String
+  price     Int // Total price in FCFA
+  status    OrderStatus @default(PENDING)
+
+  sellerPrice  Int       @default(0)
+  margin       Int       @default(0)
+  shippingFee  Int       @default(0)
+  paidAt       DateTime?
+  sellerPaidAt DateTime?
+  note         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  buyer   User    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  logs    OrderLog[]
+
+  @@index([vehicleId])
+  @@index([buyerId])
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────
+// VEHICLE EVENTS
+// ─────────────────────────────────────────────
+
+model VehicleEvent {
+  id        String           @id @default(cuid())
+  vehicleId String
+  type      VehicleEventType
+  createdAt DateTime         @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, createdAt])
+  @@index([type, createdAt])
+  @@map("vehicle_events")
+}
+
+// ─────────────────────────────────────────────
+// SELLER PROFILES
+// ─────────────────────────────────────────────
+
+model SellerProfile {
+  id        String       @id @default(cuid())
+  userId    String       @unique
+  status    SellerStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("seller_profile")
+}
+
+// ─────────────────────────────────────────────
+// ORDER LOGS
+// ─────────────────────────────────────────────
+
+model OrderLog {
+  id        String      @id @default(cuid())
+  orderId   String
+  status    OrderStatus?
+  message   String
+  actorName String
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_log")
+}
+
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String?
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("contact_messages")
+}

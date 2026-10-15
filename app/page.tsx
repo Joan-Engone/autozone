@@ -2,8 +2,10 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Hero from "@/components/sections/Hero";
 import Inventory from "@/components/sections/Inventory";
-import TrustRibbon from "@/components/sections/TrustRibbon";
-import Consultation from "@/components/sections/Consultation";
+import HowItWorks from "@/components/sections/Howitworks";
+import Services from "@/components/sections/Services";
+import Testimonials from "@/components/sections/Testimonials";
+import Contact from "@/components/sections/Contact";
 
 export default function HomePage() {
   return (
@@ -12,8 +14,10 @@ export default function HomePage() {
       <main>
         <Hero />
         <Inventory />
-        <TrustRibbon />
-        <Consultation />
+        <HowItWorks />
+        <Services />
+        <Testimonials />
+        <Contact />
       </main>
       <Footer />
     </>

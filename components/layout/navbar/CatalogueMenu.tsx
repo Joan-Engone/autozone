@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,33 +14,47 @@ const itemClass =
 /** "Catalogue" link that opens a mega menu with shortcuts to filtered catalogue pages. */
 export default function CatalogueMenu({ active }: { active: boolean }) {
   const pathname = usePathname() ?? "";
-  const [open, setOpen] = useState<boolean>(false);
+  const [open, setOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Close the menu when the route changes (preferred over an effect)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setOpen(false);
+  }
 
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
   };
+
   const openNow = () => {
     clearTimer();
     setOpen(true);
   };
+
   const closeSoon = () => {
     clearTimer();
     timer.current = setTimeout(() => setOpen(false), 140);
   };
 
-  useEffect(() => setOpen(false), [pathname]);
+  // Cleanup the pending close timer on unmount
   useEffect(() => clearTimer, []);
 
+  // Close on outside click / Escape while the menu is open
   useEffect(() => {
     if (!open) return;
+
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
     return () => {

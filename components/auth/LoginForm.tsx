@@ -79,7 +79,7 @@ export default function LoginForm() {
         return;
       }
 
-      const role = sessionResult.data.user.role;
+      const role = sessionResult.data.user.accountType;
       const destination = homeForRole(role);
 
       router.replace(destination);

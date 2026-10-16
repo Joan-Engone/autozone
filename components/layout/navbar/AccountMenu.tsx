@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,22 +16,31 @@ interface AccountMenuProps {
 /** Avatar button + dropdown for a signed-in user (desktop). */
 export default function AccountMenu({ user, onLogout }: AccountMenuProps) {
   const pathname = usePathname() ?? "";
-  const [open, setOpen] = useState<boolean>(false);
+  const [open, setOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(pathname);
   const ref = useRef<HTMLDivElement>(null);
   const dashboards = DASHBOARD_LINKS.filter((d) => d.roles.includes(user.role));
   const initial = user.name.trim().charAt(0).toUpperCase();
   const pending = user.role === "SELLER" && user.status === "PENDING";
 
-  useEffect(() => setOpen(false), [pathname]);
+  // Close the menu when the route changes (preferred over an effect)
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
+    setOpen(false);
+  }
 
   useEffect(() => {
     if (!open) return;
+
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -57,7 +67,9 @@ export default function AccountMenu({ user, onLogout }: AccountMenuProps) {
             />
           )}
         </span>
-        <span className="max-w-[110px] truncate text-sm font-semibold text-black">{user.name}</span>
+        <span className="max-w-[110px] truncate text-sm font-semibold text-black">
+          {user.name}
+        </span>
         <ChevronDown
           size={16}
           aria-hidden="true"

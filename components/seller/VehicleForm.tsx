@@ -35,6 +35,16 @@ const input =
   "w-full border bg-white px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:border-black focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D80005]";
 const label = "mb-2 block text-[13px] font-bold text-black";
 
+// Declared outside so it is not recreated on every render
+function Err({ k, errors }: { k: string; errors: Record<string, string> }) {
+  if (!errors[k]) return null;
+  return (
+    <p id={`error-${k}`} className="mt-2 text-xs text-[#D80005]">
+      {errors[k]}
+    </p>
+  );
+}
+
 export default function VehicleForm() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -58,10 +68,20 @@ export default function VehicleForm() {
   const [formError, setFormError] = useState("");
   const [sending, setSending] = useState(false);
 
-  // Free the previews when leaving the page
+  // Keep a ref of the latest photos for cleanup on unmount
   const photosRef = useRef(photos);
-  photosRef.current = photos;
-  useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
+
+  // Sync the ref after render (never during render)
+  useEffect(() => {
+    photosRef.current = photos;
+  });
+
+  // Free the previews only when the component unmounts
+  useEffect(() => {
+    return () => {
+      photosRef.current.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+  }, []);
 
   const set =
     (key: keyof Values) =>
@@ -71,7 +91,10 @@ export default function VehicleForm() {
         const next = { ...v, [key]: value };
         // The title writes itself from brand, model and year until the seller edits it
         if (!titleEdited && (key === "brand" || key === "model" || key === "year")) {
-          next.title = [next.brand, next.model, next.year].map((s) => s.trim()).filter(Boolean).join(" ");
+          next.title = [next.brand, next.model, next.year]
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(" ");
         }
         return next;
       });
@@ -92,8 +115,14 @@ export default function VehicleForm() {
     for (const file of incoming) {
       if (!TYPES.includes(file.type)) message = "Seuls les formats JPG, PNG et WebP sont acceptés.";
       else if (file.size > MAX_BYTES) message = "Chaque photo doit faire 5 Mo au maximum.";
-      else if (photos.length + accepted.length >= MAX_PHOTOS) message = `Vous pouvez ajouter ${MAX_PHOTOS} photos au maximum.`;
-      else accepted.push({ id: `${file.name}-${file.size}-${Math.random()}`, file, url: URL.createObjectURL(file) });
+      else if (photos.length + accepted.length >= MAX_PHOTOS)
+        message = `Vous pouvez ajouter ${MAX_PHOTOS} photos au maximum.`;
+      else
+        accepted.push({
+          id: `${file.name}-${file.size}-${Math.random()}`,
+          file,
+          url: URL.createObjectURL(file),
+        });
     }
     if (message) setPhotoError(message);
     if (accepted.length) setPhotos((p) => [...p, ...accepted]);
@@ -117,10 +146,13 @@ export default function VehicleForm() {
     const year = Number(values.year);
     if (values.brand.trim().length < 2) next.brand = "Saisissez la marque.";
     if (!values.model.trim()) next.model = "Saisissez le modèle.";
-    if (values.title.trim().length < 5) next.title = "Saisissez le titre de l'annonce (5 caractères minimum).";
-    if (!Number.isInteger(year) || year < 1980 || year > new Date().getFullYear() + 1) next.year = "Année invalide.";
+    if (values.title.trim().length < 5)
+      next.title = "Saisissez le titre de l'annonce (5 caractères minimum).";
+    if (!Number.isInteger(year) || year < 1980 || year > new Date().getFullYear() + 1)
+      next.year = "Année invalide.";
     if (!(Number(values.price) > 0)) next.price = "Saisissez le prix.";
-    if (values.mileage === "" || Number(values.mileage) < 0) next.mileage = "Saisissez le kilométrage.";
+    if (values.mileage === "" || Number(values.mileage) < 0)
+      next.mileage = "Saisissez le kilométrage.";
     if (!values.fuel) next.fuel = "Choisissez le carburant.";
     if (!values.transmission) next.transmission = "Choisissez la boîte.";
     if (!values.origin) next.origin = "Choisissez la provenance.";
@@ -159,13 +191,9 @@ export default function VehicleForm() {
     }
   };
 
-  const fieldClass = (key: string) => `${input} ${errors[key] ? "border-[#D80005]" : "border-gray-300"}`;
-  const Err = ({ k }: { k: string }) =>
-    errors[k] ? (
-      <p id={`error-${k}`} className="mt-2 text-xs text-[#D80005]">
-        {errors[k]}
-      </p>
-    ) : null;
+  const fieldClass = (key: string) =>
+    `${input} ${errors[key] ? "border-[#D80005]" : "border-gray-300"}`;
+
   const a11y = (k: string) => ({
     "aria-invalid": errors[k] ? true : undefined,
     "aria-describedby": errors[k] ? `error-${k}` : undefined,
@@ -177,7 +205,8 @@ export default function VehicleForm() {
       <section className="border border-gray-200 bg-white p-6">
         <h2 className="text-lg font-black uppercase tracking-tight text-black">1. Photos</h2>
         <p className="mt-1 text-sm text-gray-600">
-          Ajoutez l&apos;avant, l&apos;arrière, les côtés et l&apos;intérieur. La première photo est la photo principale.
+          Ajoutez l&apos;avant, l&apos;arrière, les côtés et l&apos;intérieur. La première photo
+          est la photo principale.
         </p>
 
         <div
@@ -192,7 +221,11 @@ export default function VehicleForm() {
             addFiles(e.dataTransfer.files);
           }}
           className={`mt-5 flex flex-col items-center justify-center border-2 border-dashed px-6 py-10 text-center transition-colors ${
-            dragging ? "border-[#D80005] bg-red-50" : errors.photos ? "border-[#D80005]" : "border-gray-300"
+            dragging
+              ? "border-[#D80005] bg-red-50"
+              : errors.photos
+                ? "border-[#D80005]"
+                : "border-gray-300"
           }`}
         >
           <ImagePlus size={32} className="text-gray-400" aria-hidden="true" />
@@ -205,7 +238,9 @@ export default function VehicleForm() {
           >
             Choisir des photos
           </button>
-          <p className="mt-3 text-xs text-gray-400">JPG, PNG ou WebP · 5 Mo maximum par photo · {MAX_PHOTOS} photos maximum</p>
+          <p className="mt-3 text-xs text-gray-400">
+            JPG, PNG ou WebP · 5 Mo maximum par photo · {MAX_PHOTOS} photos maximum
+          </p>
           <input
             ref={fileRef}
             type="file"
@@ -220,7 +255,9 @@ export default function VehicleForm() {
           />
         </div>
         {(photoError || errors.photos) && (
-          <p role="alert" className="mt-3 text-xs text-[#D80005]">{photoError || errors.photos}</p>
+          <p role="alert" className="mt-3 text-xs text-[#D80005]">
+            {photoError || errors.photos}
+          </p>
         )}
 
         {photos.length > 0 && (
@@ -230,7 +267,9 @@ export default function VehicleForm() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
                 {i === 0 && (
-                  <span className="absolute left-0 top-3 bg-[#D80005] px-2.5 py-1 text-[11px] font-bold text-white">Principale</span>
+                  <span className="absolute left-0 top-3 bg-[#D80005] px-2.5 py-1 text-[11px] font-bold text-white">
+                    Principale
+                  </span>
                 )}
                 <div className="absolute inset-x-0 bottom-0 flex justify-between bg-gradient-to-t from-black/70 to-transparent p-2">
                   {i !== 0 ? (
@@ -266,18 +305,38 @@ export default function VehicleForm() {
 
         <div className="mt-6 grid gap-6 sm:grid-cols-2">
           <div>
-            <label htmlFor="field-brand" className={label}>Marque</label>
-            <input id="field-brand" value={values.brand} onChange={set("brand")} placeholder="Toyota" className={fieldClass("brand")} {...a11y("brand")} />
-            <Err k="brand" />
+            <label htmlFor="field-brand" className={label}>
+              Marque
+            </label>
+            <input
+              id="field-brand"
+              value={values.brand}
+              onChange={set("brand")}
+              placeholder="Toyota"
+              className={fieldClass("brand")}
+              {...a11y("brand")}
+            />
+            <Err k="brand" errors={errors} />
           </div>
           <div>
-            <label htmlFor="field-model" className={label}>Modèle</label>
-            <input id="field-model" value={values.model} onChange={set("model")} placeholder="Land Cruiser Prado" className={fieldClass("model")} {...a11y("model")} />
-            <Err k="model" />
+            <label htmlFor="field-model" className={label}>
+              Modèle
+            </label>
+            <input
+              id="field-model"
+              value={values.model}
+              onChange={set("model")}
+              placeholder="Land Cruiser Prado"
+              className={fieldClass("model")}
+              {...a11y("model")}
+            />
+            <Err k="model" errors={errors} />
           </div>
 
           <div className="sm:col-span-2">
-            <label htmlFor="field-title" className={label}>Titre de l&apos;annonce</label>
+            <label htmlFor="field-title" className={label}>
+              Titre de l&apos;annonce
+            </label>
             <input
               id="field-title"
               maxLength={80}
@@ -288,50 +347,124 @@ export default function VehicleForm() {
               {...a11y("title")}
             />
             <p className="mt-2 text-xs text-gray-500">
-              Il se remplit tout seul avec la marque, le modèle et l&apos;année. Vous pouvez le modifier.
+              Il se remplit tout seul avec la marque, le modèle et l&apos;année. Vous pouvez le
+              modifier.
             </p>
-            <Err k="title" />
+            <Err k="title" errors={errors} />
           </div>
 
           <div>
-            <label htmlFor="field-year" className={label}>Année</label>
-            <input id="field-year" type="number" inputMode="numeric" value={values.year} onChange={set("year")} placeholder="2020" className={fieldClass("year")} {...a11y("year")} />
-            <Err k="year" />
+            <label htmlFor="field-year" className={label}>
+              Année
+            </label>
+            <input
+              id="field-year"
+              type="number"
+              inputMode="numeric"
+              value={values.year}
+              onChange={set("year")}
+              placeholder="2020"
+              className={fieldClass("year")}
+              {...a11y("year")}
+            />
+            <Err k="year" errors={errors} />
           </div>
           <div>
-            <label htmlFor="field-mileage" className={label}>Kilométrage (km)</label>
-            <input id="field-mileage" type="number" inputMode="numeric" min={0} value={values.mileage} onChange={set("mileage")} placeholder="62000" className={fieldClass("mileage")} {...a11y("mileage")} />
-            <Err k="mileage" />
+            <label htmlFor="field-mileage" className={label}>
+              Kilométrage (km)
+            </label>
+            <input
+              id="field-mileage"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={values.mileage}
+              onChange={set("mileage")}
+              placeholder="62000"
+              className={fieldClass("mileage")}
+              {...a11y("mileage")}
+            />
+            <Err k="mileage" errors={errors} />
           </div>
           <div>
-            <label htmlFor="field-fuel" className={label}>Carburant</label>
-            <select id="field-fuel" value={values.fuel} onChange={set("fuel")} className={fieldClass("fuel")} {...a11y("fuel")}>
+            <label htmlFor="field-fuel" className={label}>
+              Carburant
+            </label>
+            <select
+              id="field-fuel"
+              value={values.fuel}
+              onChange={set("fuel")}
+              className={fieldClass("fuel")}
+              {...a11y("fuel")}
+            >
               <option value="">Choisir</option>
-              {FUELS.map((f) => <option key={f} value={f}>{f}</option>)}
+              {FUELS.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
             </select>
-            <Err k="fuel" />
+            <Err k="fuel" errors={errors} />
           </div>
           <div>
-            <label htmlFor="field-transmission" className={label}>Boîte de vitesses</label>
-            <select id="field-transmission" value={values.transmission} onChange={set("transmission")} className={fieldClass("transmission")} {...a11y("transmission")}>
+            <label htmlFor="field-transmission" className={label}>
+              Boîte de vitesses
+            </label>
+            <select
+              id="field-transmission"
+              value={values.transmission}
+              onChange={set("transmission")}
+              className={fieldClass("transmission")}
+              {...a11y("transmission")}
+            >
               <option value="">Choisir</option>
-              {TRANSMISSIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+              {TRANSMISSIONS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
             </select>
-            <Err k="transmission" />
+            <Err k="transmission" errors={errors} />
           </div>
           <div>
-            <label htmlFor="field-origin" className={label}>Provenance</label>
-            <select id="field-origin" value={values.origin} onChange={set("origin")} className={fieldClass("origin")} {...a11y("origin")}>
+            <label htmlFor="field-origin" className={label}>
+              Provenance
+            </label>
+            <select
+              id="field-origin"
+              value={values.origin}
+              onChange={set("origin")}
+              className={fieldClass("origin")}
+              {...a11y("origin")}
+            >
               <option value="">Choisir</option>
-              {ORIGINS.map((o) => <option key={o} value={o}>{o}</option>)}
+              {ORIGINS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
             </select>
-            <Err k="origin" />
+            <Err k="origin" errors={errors} />
           </div>
           <div>
-            <label htmlFor="field-price" className={label}>Votre prix (FCFA)</label>
-            <input id="field-price" type="number" inputMode="numeric" min={0} value={values.price} onChange={set("price")} placeholder="18500000" className={fieldClass("price")} {...a11y("price")} />
-            <p className="mt-2 text-xs text-gray-500">C&apos;est le montant que vous recevez. Auto Zone ajoute sa marge pour le client.</p>
-            <Err k="price" />
+            <label htmlFor="field-price" className={label}>
+              Votre prix (FCFA)
+            </label>
+            <input
+              id="field-price"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={values.price}
+              onChange={set("price")}
+              placeholder="18500000"
+              className={fieldClass("price")}
+              {...a11y("price")}
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              C&apos;est le montant que vous recevez. Auto Zone ajoute sa marge pour le client.
+            </p>
+            <Err k="price" errors={errors} />
           </div>
         </div>
 
@@ -352,7 +485,10 @@ export default function VehicleForm() {
       </section>
 
       {formError && (
-        <div role="alert" className="flex gap-3 border border-[#D80005] bg-red-50 p-4 text-sm text-[#D80005]">
+        <div
+          role="alert"
+          className="flex gap-3 border border-[#D80005] bg-red-50 p-4 text-sm text-[#D80005]"
+        >
           <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>{formError}</span>
         </div>
@@ -367,7 +503,9 @@ export default function VehicleForm() {
           {sending && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
           {sending ? "Publication en cours" : "Publier le véhicule"}
         </button>
-        <Link href="/seller/vehicles" className="text-sm font-bold text-gray-600 hover:text-black">Annuler</Link>
+        <Link href="/seller/vehicles" className="text-sm font-bold text-gray-600 hover:text-black">
+          Annuler
+        </Link>
       </div>
     </form>
   );

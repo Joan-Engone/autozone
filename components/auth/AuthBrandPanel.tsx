@@ -1,9 +1,8 @@
-import Logo from "@/components/layout/Logo";
+
 
 export default function AuthBrandPanel() {
   return (
     <section className="hidden md:flex flex-col justify-between bg-black text-white p-14">
-      <Logo tone="onDark" />
       <div className="max-w-md">
         <h1 className="text-4xl font-black leading-tight tracking-tight">
           Suivez vos véhicules, de l&apos;achat à la livraison.

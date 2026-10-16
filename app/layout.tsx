@@ -11,6 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // The address of your website. Next.js needs it to build full links for share previews.
+  metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000"),
   title: "AUTO ZONE IMPORT & EXPORT | Véhicules Premium",
   description:
     "Spécialistes de l'importation et exportation de véhicules haut de gamme à travers le monde.",

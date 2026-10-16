@@ -1,3 +1,4 @@
+
 import "server-only";
 
 import { prisma } from "@/lib/db/prisma";
@@ -26,7 +27,10 @@ const trend = (current: number, previous: number): number | null =>
     : Math.round(((current - previous) / previous) * 100);
 
 /** Everything the seller's overview page shows. */
-export async function getSellerStats(sellerId: string, days = 30) {
+export async function getSellerStats(
+  sellerId: string,
+  days = 30,
+) {
   if (!Number.isInteger(days) || days < 1 || days > 365) {
     throw new Error("days must be an integer between 1 and 365");
   }
@@ -34,6 +38,7 @@ export async function getSellerStats(sellerId: string, days = 30) {
   const today = startOfDay(new Date());
   const start = new Date(today.getTime() - (days - 1) * DAY);
   const previousStart = new Date(start.getTime() - days * DAY);
+  const end = new Date(today.getTime() + DAY);
 
   const [vehicles, events, orders] = await Promise.all([
     prisma.vehicle.findMany({
@@ -44,7 +49,10 @@ export async function getSellerStats(sellerId: string, days = 30) {
     prisma.vehicleEvent.findMany({
       where: {
         vehicle: { sellerId },
-        createdAt: { gte: previousStart, lt: new Date(today.getTime() + DAY) },
+        createdAt: {
+          gte: previousStart,
+          lt: end,
+        },
       },
       select: {
         vehicleId: true,
@@ -54,9 +62,24 @@ export async function getSellerStats(sellerId: string, days = 30) {
     }),
 
     prisma.order.findMany({
-      where: { vehicle: { sellerId } },
-      include: { vehicle: { select: { title: true } } },
-      orderBy: { createdAt: "desc" },
+      where: {
+        vehicle: { sellerId },
+      },
+      include: {
+        vehicle: {
+          select: {
+            title: true,
+          },
+        },
+        buyer: {
+          select: {
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     }),
   ]);
 
@@ -97,6 +120,7 @@ export async function getSellerStats(sellerId: string, days = 30) {
       } else {
         previousQuotes++;
       }
+
       continue;
     }
 
@@ -110,11 +134,17 @@ export async function getSellerStats(sellerId: string, days = 30) {
     if (event.type === "VIEW") {
       views++;
       entry.views++;
-      if (point) point.views++;
+
+      if (point) {
+        point.views++;
+      }
     } else {
       quotes++;
       entry.quotes++;
-      if (point) point.quotes++;
+
+      if (point) {
+        point.quotes++;
+      }
     }
 
     perVehicle.set(event.vehicleId, entry);
@@ -128,15 +158,23 @@ export async function getSellerStats(sellerId: string, days = 30) {
         quotes: 0,
       }),
     }))
-    .sort((a, b) => b.views - a.views || b.quotes - a.quotes)
+    .sort(
+      (a, b) =>
+        b.views - a.views || b.quotes - a.quotes,
+    )
     .slice(0, 5);
 
   const countStatus = (status: string) =>
-    vehicles.filter((vehicle) => vehicle.status === status).length;
+    vehicles.filter(
+      (vehicle) => vehicle.status === status,
+    ).length;
 
   const revenue = orders
     .filter((order) => order.status !== "CANCELLED")
-    .reduce((sum, order) => sum + order.sellerPrice, 0);
+    .reduce(
+      (sum, order) => sum + order.sellerPrice,
+      0,
+    );
 
   return {
     days,
@@ -158,9 +196,13 @@ export async function getSellerStats(sellerId: string, days = 30) {
     revenue,
 
     activeOrders: orders.filter((order) =>
-      ["PENDING", "VERIFIED", "CONFIRMED", "PAID", "SHIPPED"].includes(
-        order.status,
-      ),
+      [
+        "PENDING",
+        "VERIFIED",
+        "CONFIRMED",
+        "PAID",
+        "SHIPPED",
+      ].includes(order.status),
     ).length,
 
     recentOrders: orders.slice(0, 5),
@@ -171,8 +213,12 @@ export async function getSellerStats(sellerId: string, days = 30) {
 export async function getVehicleTotals(sellerId: string) {
   const rows = await prisma.vehicleEvent.groupBy({
     by: ["vehicleId", "type"],
-    where: { vehicle: { sellerId } },
-    _count: { _all: true },
+    where: {
+      vehicle: { sellerId },
+    },
+    _count: {
+      _all: true,
+    },
   });
 
   const totals = new Map<

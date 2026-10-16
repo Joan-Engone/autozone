@@ -31,16 +31,9 @@ export const auth = betterAuth({
     },
   },
 
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID as string,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-    },
-  },
 
   user: {
     additionalFields: {
-      // The Admin plugin manages the role field.
       phone: {
         type: "string",
         required: false,
@@ -70,7 +63,7 @@ export const auth = betterAuth({
             accountType?: string;
           };
 
-          // Preserve the role assigned by the trusted admin API.
+          // Preserve the admin role when assigned by trusted admin logic.
           if (data.role === "admin") {
             return {
               data: {
@@ -81,7 +74,7 @@ export const auth = betterAuth({
             };
           }
 
-          // Public sign-up can only create buyers or sellers.
+          // Public registration can create buyers or sellers.
           const isSeller = data.accountType === "seller";
 
           return {

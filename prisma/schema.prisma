@@ -155,6 +155,7 @@ model Vehicle {
   origin       String?
   description  String?
   imageUrl     String?
+  images       String[] @default([])
 
   status  VehicleStatus @default(AVAILABLE)
   listing ListingStatus @default(PENDING)

@@ -30,7 +30,7 @@ export interface NavLink {
 }
 
 /** Roles supported by the application. */
-export type UserRole = "BUYER" | "SELLER" | "ADMIN";
+export type UserRole = "BUYER" | "CLIENT" | "SELLER" | "ADMIN";
 
 export interface DashboardLink extends NavLink {
   roles: UserRole[];
@@ -48,7 +48,7 @@ export const DASHBOARD_LINKS: DashboardLink[] = [
   {
     label: "Mes commandes",
     href: ROUTES.dashboard,
-    roles: ["BUYER"],
+    roles: ["BUYER", "CLIENT"],
     icon: LayoutDashboard,
   },
   {
@@ -103,7 +103,7 @@ export const LEGAL_LINKS: NavLink[] = [
 ];
 
 /**
- * True when `href` matches the current page.
+ * True when href matches the current page.
  * Hash links are never considered active.
  */
 export function isActiveRoute(
@@ -118,21 +118,28 @@ export function isActiveRoute(
 }
 
 /**
- * Determine the correct landing page after login.
- * Supports both uppercase and lowercase admin roles.
+ * Determines the landing page after login.
+ *
+ * ADMIN  -> /admin
+ * SELLER -> /seller
+ * BUYER  -> /dashboard
+ * CLIENT -> /dashboard
+ *
+ * Role comparisons are case-insensitive.
  */
 export function homeForRole(
   role?: string | null,
 ): string {
-  const normalizedRole = role?.trim().toUpperCase();
+  switch (role?.trim().toUpperCase()) {
+    case "ADMIN":
+      return ROUTES.admin;
 
-  if (normalizedRole === "ADMIN") {
-    return ROUTES.admin;
+    case "SELLER":
+      return ROUTES.seller;
+
+    case "BUYER":
+    case "CLIENT":
+    default:
+      return ROUTES.dashboard;
   }
-
-  if (normalizedRole === "SELLER") {
-    return ROUTES.seller;
-  }
-
-  return ROUTES.dashboard;
 }

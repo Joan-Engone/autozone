@@ -1,19 +1,42 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth/server"; // ← the file that contains betterAuth({...})
+import { auth } from "@/lib/auth/server";
 
-/** Returns the session, or sends the visitor to /login. */
+/**
+ * Requires the user to be authenticated.
+ */
 export async function requireSession() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) redirect("/login");
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect("/login");
+  }
+
   return session;
 }
 
-/** Accepts one role ("admin") or several (["seller", "admin"]). */
-export async function requireRole(roles: string | readonly string[]) {
+/**
+ * Requires authentication and one of the specified roles.
+ * Role comparisons are case-insensitive.
+ */
+export async function requireRole(
+  roles: string | readonly string[],
+) {
   const session = await requireSession();
-  const allowed = typeof roles === "string" ? [roles] : roles;
-  const role = session.user.role ?? "client";
-  if (!allowed.includes(role)) redirect("/dashboard");
+
+  const allowedRoles = (
+    typeof roles === "string" ? [roles] : roles
+  ).map((role) => role.toUpperCase());
+
+  const userRole = (
+    session.user.role ?? "BUYER"
+  ).toUpperCase();
+
+  if (!allowedRoles.includes(userRole)) {
+    redirect("/dashboard");
+  }
+
   return session;
 }
